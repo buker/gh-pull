@@ -3,6 +3,7 @@ import { createReviewerManagement } from './reviewer-management.js';
 import { repositoryScope } from './public/query.js';
 import { ApiError, createGraphQLClient, createGitHubTransport } from './github-client.js';
 import { mergeOptions, normalizePullRequest, reviewState } from './pull-request.js';
+import { DEFAULT_SETTINGS, buildPullRequestFields } from './settings.js';
 
 // Preserve the service API used by the server and existing integrations.
 export { ApiError } from './github-client.js';
@@ -10,37 +11,7 @@ export { mergeOptions, reviewersFor } from './pull-request.js';
 const mergeFields = `viewerCanMergeAsAdmin headRefOid mergeable mergeStateStatus mergeQueue { id } stackEntry { id }
   repository { nameWithOwner viewerPermission viewerDefaultMergeMethod mergeCommitAllowed squashMergeAllowed rebaseMergeAllowed }`;
 
-const fields = `viewerCanClose viewerCanReopen id number title url state isDraft createdAt updatedAt headRefName baseRefName
-  headRepository { nameWithOwner }
-  author { login } repository { nameWithOwner defaultBranchRef { name } }
-  ${mergeFields}
-  additions deletions changedFiles totalCommentsCount reviewDecision
-  closingIssuesReferences(first: 20) {
-    totalCount pageInfo { hasNextPage }
-    nodes { number title url state repository { nameWithOwner } }
-  }
-  reviewRequests(first: 100) {
-    pageInfo { hasNextPage }
-    nodes { requestedReviewer {
-      __typename
-      ... on Actor { login }
-      ... on Team { slug organization { login } }
-      ... on EnterpriseTeam { name }
-    } }
-  }
-  latestReviews(first: 100) {
-    pageInfo { hasNextPage }
-    nodes { id url author { login __typename } state }
-  }
-  labels(first: 10) { nodes { name } }
-  commits(last: 1) { nodes { commit { statusCheckRollup {
-    state
-    contexts {
-      totalCount
-      checkRunCountsByState { state count }
-      statusContextCountsByState { state count }
-    }
-  } } } }`;
+const fields = buildPullRequestFields(DEFAULT_SETTINGS);
 
 export function validateMerge(input) {
   const { id } = validateDraftUpdate(input);
@@ -104,10 +75,14 @@ function dependencyQuery(batch) {
 }
 
 export function createGitHub(options = {}) {
-  const { getMergeAccess } = options;
+  const { getMergeAccess, getSettings = () => DEFAULT_SETTINGS } = options;
   const request = createGitHubTransport(options);
   const graphql = createGraphQLClient({ ...options, request });
   const withReviewThreadCounts = createReviewThreadCounts(graphql);
+  const resolveSettings = () => {
+    const value = getSettings();
+    return value && typeof value.then === 'function' ? value : Promise.resolve(value);
+  };
 
   async function ownedPullRequest(id, selection, deniedMessage) {
     const data = await graphql(`query($id: ID!) {
@@ -165,24 +140,27 @@ export function createGitHub(options = {}) {
   async function list({ scope = 'authored', state = 'open', cursor = null, query: customQuery } = {}) {
     const states = { open: ['OPEN'], closed: ['CLOSED'], merged: ['MERGED'], all: ['OPEN', 'CLOSED', 'MERGED'] }[state];
     if (!states || !['authored', 'involved', 'review'].includes(scope)) throw new ApiError('Invalid filter.', 400);
+    const settings = await resolveSettings();
+    const pageSize = settings.listPageSize;
+    const selection = buildPullRequestFields(settings);
     let data, connection;
     if (customQuery === undefined && scope === 'authored') {
-      data = await graphql(`query($cursor: String, $states: [PullRequestState!]) {
-        viewer { login pullRequests(first: 50, after: $cursor, states: $states,
+      data = await graphql(`query($cursor: String, $states: [PullRequestState!], $first: Int!) {
+        viewer { login pullRequests(first: $first, after: $cursor, states: $states,
           orderBy: {field: UPDATED_AT, direction: DESC}) {
-          totalCount pageInfo { hasNextPage endCursor } nodes { ${fields} }
+          totalCount pageInfo { hasNextPage endCursor } nodes { ${selection} }
         } }
-      }`, { cursor, states });
+      }`, { cursor, states, first: pageSize });
       connection = data.viewer.pullRequests;
     } else {
       const qualifier = scope === 'involved' ? 'involves:@me' : 'review-requested:@me';
       const query = customQuery ?? `is:pr ${qualifier} ${state === 'all' ? '' : `is:${state}`} sort:updated-desc`;
-      data = await graphql(`query($cursor: String, $query: String!) {
+      data = await graphql(`query($cursor: String, $query: String!, $first: Int!) {
         viewer { login }
-        search(type: ISSUE, query: $query, first: 50, after: $cursor) {
-          issueCount pageInfo { hasNextPage endCursor } nodes { ... on PullRequest { ${fields} } }
+        search(type: ISSUE, query: $query, first: $first, after: $cursor) {
+          issueCount pageInfo { hasNextPage endCursor } nodes { ... on PullRequest { ${selection} } }
         }
-      }`, { cursor, query });
+      }`, { cursor, query, first: pageSize });
       connection = data.search;
     }
     return {

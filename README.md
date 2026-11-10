@@ -15,13 +15,24 @@ Both use your existing GitHub CLI login or a personal access token. No separate 
 
 [▶ Watch the quick tour](https://youtu.be/4LBga5H5Wwk) · 81 seconds · narrated with captions
 
+## Chess.com fork (configurable API load)
+
+This fork adds **Settings** in local mode: **PRs per load** (3–50, default 25) and **detail level** (light / balanced / full). Use smaller values if GitHub returns 502 on large `involves:@me` views. Settings persist in `~/.config/gh-pull/settings.json`.
+
+```sh
+gh pull stop
+gh extension remove pull    # if you used shiqicao/gh-pull
+gh extension install buker/gh-pull
+gh pull
+```
+
 ## GitHub CLI extension
 
 Install [GitHub CLI](https://cli.github.com/) if needed, then run:
 
 ```sh
 gh auth login --hostname github.com  # Skip if already signed in
-gh extension install shiqicao/gh-pull
+gh extension install shiqicao/gh-pull   # upstream; or buker/gh-pull for this fork
 gh pull
 ```
 

@@ -23,6 +23,7 @@ export const publicAssets = [
   ['polling.js', 'text/javascript'],
   ['state.js', 'text/javascript'],
   ['query.js', 'text/javascript'],
+  ['settings-ui.js', 'text/javascript'],
   ['query-editor.js', 'text/javascript'],
   ['vendor/codemirror.js', 'text/javascript'],
   ['vendor/codemirror.LICENSE.txt', 'text/plain'],

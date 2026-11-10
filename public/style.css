@@ -941,6 +941,27 @@ textarea.form-input { display: block; width: 100%; min-height: 80px; margin: 6px
 .review-required { float: right; color: var(--color-muted); font-weight: 400; font-size: 11px; }
 .form-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
+.settings-dialog {
+  border: 1px solid var(--color-divider);
+  border-radius: 12px;
+  padding: 0;
+  max-width: min(420px, calc(100vw - 24px));
+  background: var(--color-page);
+  color: var(--color-text);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.22);
+}
+
+.settings-dialog::backdrop { background: rgb(0 0 0 / 0.35); }
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+}
+
+.settings-form h2 { margin: 0; font-size: 1.1rem; }
+
 .lifecycle-action { display: inline-flex; align-items: center; gap: 4px; }
 #mutation-notice { padding: 10px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-warning-bg); }
 

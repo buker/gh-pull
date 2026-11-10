@@ -127,7 +127,7 @@ test('authored history uses an unlimited connection, cursor, states and normaliz
   } });
   const result = await list({ state: 'all', cursor: 'previous' });
   assert.match(request.query, /pullRequests/);
-  assert.deepEqual(request.variables, { cursor: 'previous', states: ['OPEN', 'CLOSED', 'MERGED'] });
+  assert.deepEqual(request.variables, { cursor: 'previous', states: ['OPEN', 'CLOSED', 'MERGED'], first: 25 });
   assert.equal(result.total, 1501); assert.equal(result.limited, false);
   assert.equal(result.items[0].author, 'deleted-user');
   assert.equal(result.items[0].branch, 'feature/keyboard-navigation');
@@ -509,7 +509,7 @@ test('closing issues include titles, cross-repository links, states, totals and 
       ['Fix sign-in redirect', 'owner/other', 'OPEN'], ['Handle expired sessions', 'owner/app', 'CLOSED'],
     ]);
   }
-  for (const call of calls) assert.match(call.query, /closingIssuesReferences\(first: 20\)/);
+  for (const call of calls) assert.match(call.query, /closingIssuesReferences\(first: (10|20)\)/);
 });
 
 test('reviewer identities retain GitHub bot type for avatar shape', () => {

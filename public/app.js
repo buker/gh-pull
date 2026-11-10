@@ -16,6 +16,7 @@ import { createReviewControls } from './reviews.js';
 import { element, icon, clipboardFeedback, observeStickyTop } from './ui.js';
 import { assignNameColors, NAME_COLOR_COUNT, dependencyLanes, groupPulls, labels, isOwn, mergeLabels, mergeMethodLabels } from './model.js';
 import { queryFromParams, queryPresets, setQueryPreset, normalizeQuery, queryError, matchesQueryState } from './query.js';
+import { createSettingsUi } from './settings-ui.js';
 
 const $ = id => document.getElementById(id);
 installTooltips();
@@ -648,6 +649,7 @@ clipboardFeedback($('copy-update-command'), {
 
 let updateTimer;
 let extensionUpdatesEnabled = false;
+let settingsUi;
 document.addEventListener('visibilitychange', checkExtensionUpdate);
 window.addEventListener('focus', checkExtensionUpdate);
 window.addEventListener('online', checkExtensionUpdate);
@@ -699,6 +701,16 @@ async function initializeSession() {
     showDashboard(false);
     $('links-hint').hidden = !authenticated;
     $('refresh').hidden = !authenticated;
+    const settingsAvailable = session.mode === 'local' && authenticated;
+    $('settings-open').hidden = !settingsAvailable;
+    if (settingsAvailable) {
+      $('settings-open').dataset.tooltip = 'GitHub API load settings';
+      $('settings-open').setAttribute('aria-label', 'GitHub API load settings');
+      settingsUi ??= createSettingsUi({
+        apiFetch,
+        onSaved: async () => { loads.cancel(); await load({ refresh: true }); },
+      });
+    }
     $('logout').hidden = authMode !== 'github-app' || !authenticated;
     $('install').hidden = authMode !== 'github-app' || !authenticated || !session.installUrl;
     if (session.installUrl) $('install').href = session.installUrl;

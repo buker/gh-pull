@@ -1,6 +1,7 @@
 import { validateReviewerChange } from './reviewer-management.js';
 import { publicAssets } from './public-assets.js';
 import { createSavedViewsStore, rankSavedViews } from './saved-views.js';
+import { createSettingsStore, settingsCacheKey } from './settings.js';
 import { isSea, getAsset } from 'node:sea';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -29,7 +30,7 @@ const mutations = new Map([
   ['/api/pulls/merge', { method: 'merge', validate: validateMerge, unavailable: 'Status changes are unavailable.' }],
 ]);
 
-export function createApp({ savedViews = createSavedViewsStore(), list = createGitHub(), updateTitle = list.updateTitle, convertToDraft = list.convertToDraft, markReadyForReview = list.markReadyForReview, merge = list.merge, dismissReview = list.dismissReview, closePull = list.closePull, reopenPull = list.reopenPull, changeReviewer = list.changeReviewer, addComment = list.addComment, config = { mode: 'local' }, localControl, authOptions, deploymentEnv = process.env } = {}) {
+export function createApp({ savedViews = createSavedViewsStore(), settingsStore = createSettingsStore(), list = createGitHub({ getSettings: () => settingsStore.read() }), updateTitle = list.updateTitle, convertToDraft = list.convertToDraft, markReadyForReview = list.markReadyForReview, merge = list.merge, dismissReview = list.dismissReview, closePull = list.closePull, reopenPull = list.reopenPull, changeReviewer = list.changeReviewer, addComment = list.addComment, config = { mode: 'local' }, localControl, authOptions, deploymentEnv = process.env } = {}) {
   const build = config.mode === 'local' ? localControl?.version : null;
   const checkUpdate = createUpdateCheck(build);
   const version = deploymentVersion(deploymentEnv, build);
@@ -74,6 +75,32 @@ export function createApp({ savedViews = createSavedViewsStore(), list = createG
       if (auth && url.pathname.startsWith('/api/') && !session) throw new ApiError('Please sign in with GitHub.', 401);
       const activeList = session ? session.list : list;
       const cache = session ? session.cache : localCache;
+      if (url.pathname === '/api/settings') {
+        if (auth) return send(404, { error: 'Settings are available in local mode.' });
+        if (!['GET', 'PATCH'].includes(req.method)) return send(405, { error: 'Method not allowed.' });
+        if (req.method === 'GET') return send(200, { settings: await settingsStore.read() });
+        if (req.headers.origin !== origin) return send(403, { error: 'Same-origin requests only.' });
+        if (req.headers['content-type']?.split(';')[0].trim() !== 'application/json') return send(415, { error: 'Expected application/json.' });
+        const chunks = []; let size = 0;
+        for await (const chunk of req) {
+          size += chunk.length;
+          if (size > 4096) throw new ApiError('Request body is too large.', 413);
+          chunks.push(chunk);
+        }
+        let input;
+        try { input = JSON.parse(Buffer.concat(chunks).toString('utf8')); }
+        catch { throw new ApiError('Invalid JSON body.', 400); }
+        try {
+          const settings = await settingsStore.write(input);
+          for (const cachedKey of cache.keys()) {
+            if (cachedKey.startsWith('list:')) cache.delete(cachedKey);
+          }
+          for (const stream of subscribers.get(cache) ?? []) stream.write('event: invalidate\ndata: {}\n\n');
+          return send(200, { settings });
+        } catch (error) {
+          throw new ApiError(error.message, 400);
+        }
+      }
       if (url.pathname === '/api/saved-views') {
         if (auth) return send(404, { error: 'Saved views are available in local mode.' });
         if (!['GET', 'POST'].includes(req.method)) return send(405, { error: 'Method not allowed.' });
@@ -132,7 +159,7 @@ export function createApp({ savedViews = createSavedViewsStore(), list = createG
         return await handleStatus(url, activeList, cache, send);
       }
       if (url.pathname === '/api/pulls') {
-        return await handleList(url, activeList, cache, send);
+        return await handleList(url, activeList, cache, send, settingsStore);
       }
       return await serveAsset(url, res, send);
     } catch (error) {
@@ -190,7 +217,7 @@ async function handleStatus(url, activeList, cache, send) {
   }, { ttl: kind === 'reviewCounts' ? 60_000 : kind === 'status' ? 10_000 : 1000 }));
 }
 
-async function handleList(url, activeList, cache, send) {
+async function handleList(url, activeList, cache, send, settingsStore) {
   const scope = url.searchParams.get('scope') ?? 'authored';
   const state = url.searchParams.get('state') ?? 'open';
   const cursor = url.searchParams.get('cursor') || null;
@@ -202,7 +229,8 @@ async function handleList(url, activeList, cache, send) {
     try { query = toGitHubQuery(url.searchParams.get('q')); }
     catch (error) { return send(400, { error: error.message }); }
   }
-  const key = `list:${JSON.stringify(query === undefined ? [scope, state, cursor] : ['query', query, cursor])}`;
+  const settings = await settingsStore.read();
+  const key = `list:${settingsCacheKey(settings)}:${JSON.stringify(query === undefined ? [scope, state, cursor] : ['query', query, cursor])}`;
   return send(200, await cachedRequest(cache, key,
     () => activeList(query === undefined ? { scope, state, cursor } : { query, cursor }),
     { ttl: 25_000, force: url.searchParams.get('refresh') === '1' }));

@@ -90,7 +90,7 @@ test('custom searches pass their full query and cursor through GraphQL variables
   } });
   const query = 'is:pr repo:owner/repo label:"good first issue" sort:comments-desc';
   const result = await list({ query, cursor: 'previous' });
-  assert.deepEqual(body.variables, { query, cursor: 'previous' });
+  assert.deepEqual(body.variables, { query, cursor: 'previous', first: 25 });
   assert.equal(result.limited, true);
   assert.equal(result.pageInfo.endCursor, 'next');
 });
