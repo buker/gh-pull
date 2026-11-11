@@ -147,6 +147,10 @@ export function createApp({ savedViews = createSavedViewsStore(), settingsStore 
         if (!activeList.reviewerSuggestions) throw new ApiError('Reviewer search is unavailable.', 503);
         return send(200, await activeList.reviewerSuggestions(url.searchParams.get('id'), url.searchParams.get('q') ?? ''));
       }
+      if (url.pathname === '/api/membership') {
+        if (!activeList.membership) return send(200, { organizations: [], repositories: [], limited: { organizations: false, repositories: false } });
+        return send(200, await cachedRequest(cache, 'membership', () => activeList.membership(), { ttl: 10 * 60_000 }));
+      }
       if (url.pathname === '/api/repositories') {
         let scope;
         try { scope = repositoryScope(url.searchParams.get('q') ?? ''); }

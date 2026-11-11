@@ -962,6 +962,36 @@ textarea.form-input { display: block; width: 100%; min-height: 80px; margin: 6px
 
 .settings-form h2 { margin: 0; font-size: 1.1rem; }
 
+.scope-filters {
+  grid-column: 1 / -1;
+  border: 1px solid var(--color-divider);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-top: 4px;
+}
+
+.scope-filters-grid {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(240px, 2fr);
+  gap: 12px;
+}
+
+.scope-filters select[multiple] {
+  width: 100%;
+  min-height: 6.5rem;
+}
+
+.scope-filters-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+@media (max-width: 720px) {
+  .scope-filters-grid { grid-template-columns: 1fr; }
+}
+
 .lifecycle-action { display: inline-flex; align-items: center; gap: 4px; }
 #mutation-notice { padding: 10px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-warning-bg); }
 

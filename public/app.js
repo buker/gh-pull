@@ -17,6 +17,7 @@ import { element, icon, clipboardFeedback, observeStickyTop } from './ui.js';
 import { assignNameColors, NAME_COLOR_COUNT, dependencyLanes, groupPulls, labels, isOwn, mergeLabels, mergeMethodLabels } from './model.js';
 import { queryFromParams, queryPresets, setQueryPreset, normalizeQuery, queryError, matchesQueryState } from './query.js';
 import { createSettingsUi } from './settings-ui.js';
+import { createScopeFilters } from './scope-filters.js';
 
 const $ = id => document.getElementById(id);
 installTooltips();
@@ -583,6 +584,16 @@ async function initializeQueryEditor() {
     },
     onChange: updateQueryControls, onSubmit: applyQuery,
   });
+  if (authMode === 'local') {
+    scopeFilters = createScopeFilters({
+      apiFetch,
+      responseError,
+      getQuery: () => queryEditor.value,
+      setQuery: value => queryEditor.setValue(value),
+      onApply: applyQuery,
+    });
+    void scopeFilters.load();
+  }
   savedViews = createSavedViews({ enabled: authMode === 'local', getQuery: () => queryEditor.value, getAppliedQuery: () => appliedQuery, getGroup: () => $('group').value, onOpen: () => queryEditor.closeSuggestions(),
     apply: (query, group, draft = query) => { $('group').value = group; queryEditor.setValue(query); applyQuery(); queryEditor.setValue(draft); updateQueryControls(); render(); },
     request: async input => {
@@ -608,6 +619,7 @@ function updateQueryControls() {
   $('query-feedback').classList.toggle('query-error', Boolean(error));
   $('query-editor').classList.toggle('invalid', Boolean(error));
   $('query-submit').disabled = Boolean(error);
+  if (scopeFilters) scopeFilters.syncFromQuery();
 }
 function applyQuery() {
   if (queryError(queryEditor.value)) { updateQueryControls(); return; }
@@ -650,6 +662,7 @@ clipboardFeedback($('copy-update-command'), {
 let updateTimer;
 let extensionUpdatesEnabled = false;
 let settingsUi;
+let scopeFilters;
 document.addEventListener('visibilitychange', checkExtensionUpdate);
 window.addEventListener('focus', checkExtensionUpdate);
 window.addEventListener('online', checkExtensionUpdate);

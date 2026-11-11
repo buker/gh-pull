@@ -56,6 +56,18 @@
         <label class="field field-label">State<select id="state"><option value="open">Open (including drafts)</option><option value="all">All states</option><option value="merged">Merged</option><option value="closed">Closed (unmerged)</option><option value="custom" disabled>Custom</option></select></label>
         <label class="field field-label">Group by<select id="group"><option value="repo">Repository</option><option value="author">Author</option><option value="status">Status</option><option value="checks">Checks</option><option value="none">No grouping</option></select></label>
         <label class="field field-label">Sort<select id="sort"><option value="updated">Recently updated</option><option value="created">Newest created</option><option value="oldest">Oldest created</option><option value="review">Review status</option><option value="relevance">Best match</option><option value="custom" disabled>Custom</option></select></label>
+        <fieldset id="scope-filters" class="scope-filters" hidden aria-label="Limit search by organization or repository">
+          <legend class="field-label">Limit to</legend>
+          <p id="scope-status" class="help-text" role="status"></p>
+          <div class="scope-filters-grid">
+            <label class="field field-label">Organizations<select id="scope-orgs" multiple size="4" aria-describedby="scope-status"></select></label>
+            <label class="field field-label">Repositories<select id="scope-repos" multiple size="6" aria-describedby="scope-status"></select></label>
+          </div>
+          <div class="scope-filters-actions">
+            <button id="scope-clear" type="button">Clear scope</button>
+            <button id="scope-apply" type="button">Apply scope</button>
+          </div>
+        </fieldset>
       </form>
       <div id="saved-view-footer" hidden></div>
     </section>

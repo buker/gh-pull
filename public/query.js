@@ -89,6 +89,27 @@ export function matchesQueryState(pr, query) {
   });
 }
 
+export function splitScopeFilters(query) {
+  const tokens = tokenizeQuery(query);
+  const orgs = [];
+  const repos = [];
+  const rest = [];
+  for (const token of tokens) {
+    if (!token.negative && token.key === 'org' && token.value) orgs.push(token.value);
+    else if (!token.negative && token.key === 'repo' && token.value) repos.push(token.value);
+    else rest.push(token.raw);
+  }
+  return { orgs, repos, queryWithoutScope: rest.join(' ') };
+}
+
+export function withScopeFilters(query, { orgs = [], repos = [] } = {}) {
+  const { queryWithoutScope } = splitScopeFilters(query);
+  const parts = [queryWithoutScope];
+  for (const org of [...new Set(orgs)].sort()) parts.push(`org:${org}`);
+  for (const repo of [...new Set(repos)].sort()) parts.push(`repo:${repo}`);
+  return normalizeQuery(parts.filter(Boolean).join(' '));
+}
+
 export function setQueryPreset(query, control, value) {
   if (!Object.hasOwn(presets, control) || !Object.hasOwn(presets[control], value)) return query;
   const tokens = tokenizeQuery(query);

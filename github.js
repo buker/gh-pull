@@ -174,6 +174,54 @@ export function createGitHub(options = {}) {
 
   list.viewer = async () => (await graphql('query SavedViewsViewer { viewer { login } }')).viewer.login;
 
+  list.membership = async () => {
+    const organizations = new Set();
+    const repositories = new Set();
+    let orgCursor = null;
+    for (let page = 0; page < 10; page++) {
+      const data = await graphql(`query($cursor: String) {
+        viewer {
+          organizations(first: 100, after: $cursor) {
+            pageInfo { hasNextPage endCursor }
+            nodes { login }
+          }
+        }
+      }`, { cursor: orgCursor });
+      const connection = data.viewer.organizations;
+      for (const org of connection.nodes ?? []) if (org?.login) organizations.add(org.login);
+      if (!connection.pageInfo.hasNextPage) break;
+      const next = connection.pageInfo.endCursor;
+      if (!next || next === orgCursor) break;
+      orgCursor = next;
+    }
+    let repoCursor = null;
+    let reposLimited = false;
+    for (let page = 0; page < 10; page++) {
+      const data = await graphql(`query($cursor: String) {
+        viewer {
+          repositories(first: 100, after: $cursor,
+            affiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER],
+            orderBy: {field: UPDATED_AT, direction: DESC}) {
+            pageInfo { hasNextPage endCursor }
+            nodes { nameWithOwner }
+          }
+        }
+      }`, { cursor: repoCursor });
+      const connection = data.viewer.repositories;
+      for (const repo of connection.nodes ?? []) if (repo?.nameWithOwner) repositories.add(repo.nameWithOwner);
+      reposLimited = Boolean(connection.pageInfo.hasNextPage);
+      if (!connection.pageInfo.hasNextPage) break;
+      const next = connection.pageInfo.endCursor;
+      if (!next || next === repoCursor) break;
+      repoCursor = next;
+    }
+    return {
+      organizations: [...organizations].sort((a, b) => a.localeCompare(b)),
+      repositories: [...repositories].sort((a, b) => a.localeCompare(b)),
+      limited: { organizations: false, repositories: reposLimited },
+    };
+  };
+
   list.repositories = async query => {
     const scope = repositoryScope(query);
     async function discover(people) {

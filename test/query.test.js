@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { tokenizeQuery, queryPresets, setQueryPreset, normalizeQuery, toGitHubQuery, queryError, queryFromParams, queryCompletions, DEFAULT_QUERY } from '../public/query.js';
+import { tokenizeQuery, queryPresets, setQueryPreset, normalizeQuery, toGitHubQuery, queryError, queryFromParams, queryCompletions, DEFAULT_QUERY, splitScopeFilters, withScopeFilters } from '../public/query.js';
 import { createApp } from '../server.js';
 import { createGitHub } from '../github.js';
 import { groupPulls } from '../public/model.js';
@@ -13,6 +13,18 @@ test('query tokens preserve quotes, exclusions, original case and caret ranges',
   assert.equal(tokens[2].negative, true);
   assert.equal(tokens[3].key, null);
   assert.equal(normalizeQuery('  label:"Good first issue"  -author:Bob  '), 'label:"Good first issue" -author:Bob');
+});
+
+test('scope filters round-trip org and repo qualifiers', () => {
+  const query = 'is:open involves:@me sort:updated-desc';
+  const scoped = withScopeFilters(query, { orgs: ['ChessCom'], repos: ['ChessCom/clusters', 'buker/sandbox'] });
+  assert.match(scoped, /org:ChessCom/);
+  assert.match(scoped, /repo:ChessCom\/clusters/);
+  const { orgs, repos, queryWithoutScope } = splitScopeFilters(scoped);
+  assert.deepEqual(orgs, ['chesscom']);
+  assert.deepEqual([...repos].sort(), ['buker/sandbox', 'chesscom/clusters']);
+  assert.equal(queryWithoutScope, query);
+  assert.equal(withScopeFilters(scoped, { orgs: [], repos: [] }), query);
 });
 
 test('validation restricts results to PRs and bounds malformed or unsupported input', () => {
