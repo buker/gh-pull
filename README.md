@@ -22,7 +22,8 @@ This fork adds **Settings** in local mode: **PRs per load** (3–50, default 25)
 ```sh
 gh pull stop
 gh extension remove pull    # if you used shiqicao/gh-pull
-gh extension install buker/gh-pull
+# Until a GitHub release exists, install from a local clone:
+gh extension install /path/to/gh-pull   # this repo; includes the node launcher script
 gh pull
 ```
 
