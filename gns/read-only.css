@@ -1,0 +1,20 @@
+body.gns-read-only .merge-action,
+body.gns-read-only .merge-menu,
+body.gns-read-only .title-edit,
+body.gns-read-only .draft-toggle,
+body.gns-read-only .reviewer-manage,
+body.gns-read-only .lifecycle-action,
+body.gns-read-only .review-action,
+body.gns-read-only .comment-compose,
+body.gns-read-only #signin,
+body.gns-read-only #logout,
+body.gns-read-only #install,
+body.gns-read-only #update-notice {
+  display: none !important;
+}
+
+body.gns-read-only #deployed-version::after {
+  content: ' · read-only GNS inbox';
+  color: var(--color-muted);
+  font-weight: normal;
+}

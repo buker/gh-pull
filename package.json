@@ -16,6 +16,7 @@
     "test:browser": "node --test --test-timeout=60000 --test-reporter=tap scripts/*browser-check.mjs",
     "build:vendor": "node scripts/build-vendor.mjs",
     "cli": "node cli/main.js",
+    "build:gns": "node scripts/build-gns-ui.mjs",
     "build:extension": "node scripts/build-extension.mjs",
     "test:extension": "node --test scripts/extension-check.mjs",
     "test:extension:browser": "node --test scripts/extension-ui-check.mjs"
